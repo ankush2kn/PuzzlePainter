@@ -2,6 +2,8 @@
 
 **Status: live.** Deployed via vinext to the `puzzle-painter` Worker (`https://puzzle-painter.arshanti.workers.dev`), with `puzzlepainter.fultu.com` attached as a Custom Domain and verified working. `OPENROUTER_API_KEY` and `OPENROUTER_SITE_URL` are set as Worker secrets. See `CLAUDE.md`'s Deployment section for the day-to-day reference (redeploy command, secret rotation, gotchas); this file remains the narrative rationale and fallback plans below.
 
+**CI/CD:** the `puzzle-painter` Worker is connected to this repo via Cloudflare Workers Builds (GitHub App), tracking the `main` branch with `npm run deploy:vinext` as the deploy command — a push to `main` triggers a build + deploy automatically. `npm run deploy:vinext` from a local machine still works too, for a manual/out-of-band deploy.
+
 ## Short answer
 
 Yes — this can run entirely on Cloudflare, at **$0 infrastructure cost**, with `pp.fultu.com` (or `puzzlepainter.fultu.com`) pointed at a Cloudflare Worker. No Google Cloud, no separate hosting account, no database. `fultu.com` is already a Cloudflare zone, so DNS + TLS for the subdomain is a one-click "Add Custom Domain" step once the Worker is deployed — nothing to configure by hand.
