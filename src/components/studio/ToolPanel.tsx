@@ -108,7 +108,7 @@ export function ToolPanel({
         </section>
       )}
 
-      <section>
+      <section className="color-section">
         <h2 className="panel-title">Color</h2>
         <div className="color-current" style={{ background: color }} />
         <div className="color-grid">
@@ -131,7 +131,7 @@ export function ToolPanel({
         tool === "eraser" ||
         tool === "stamp" ||
         tool === "text") && (
-        <section>
+        <section className="size-section">
           <h2 className="panel-title">Size</h2>
           <div className="size-row">
             {SIZES.map((s) => (

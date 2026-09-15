@@ -16,6 +16,7 @@ import type {
   Stage,
   ToolId,
 } from "@/types/studio";
+import { ColorRail } from "@/components/studio/ColorRail";
 import { DescribePageModal } from "@/components/studio/DescribePageModal";
 import {
   PaintingCanvas,
@@ -60,9 +61,16 @@ export function Studio() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [puzzleOpen, setPuzzleOpen] = useState(false);
 
   const stampEmoji =
     STAMPS.find((s) => s.id === stampId)?.emoji ?? "⭐";
+
+  const handleColorChange = useCallback((c: string) => {
+    setColor(c);
+    setRecentColors((prev) => [c, ...prev.filter((x) => x !== c)].slice(0, 3));
+  }, []);
 
   const syncHistory = useCallback(() => {
     setCanUndo(canvasRef.current?.canUndo() ?? false);
@@ -340,7 +348,7 @@ export function Studio() {
           stampId={stampId}
           textValue={textValue}
           onToolChange={setTool}
-          onColorChange={setColor}
+          onColorChange={handleColorChange}
           onBrushSizeChange={setBrushSize}
           onStampChange={setStampId}
           onTextChange={setTextValue}
@@ -368,11 +376,30 @@ export function Studio() {
           </div>
         </main>
 
+        <ColorRail
+          tool={tool}
+          color={color}
+          recentColors={recentColors}
+          brushSize={brushSize}
+          onColorChange={handleColorChange}
+          onBrushSizeChange={setBrushSize}
+          onOpenPuzzle={() => setPuzzleOpen(true)}
+        />
+
+        {puzzleOpen && (
+          <div
+            className="puzzle-sheet-backdrop"
+            onClick={() => setPuzzleOpen(false)}
+          />
+        )}
+
         <PuzzlePanel
           stage={stage}
           shape={shape}
           difficulty={difficulty}
           showCutLines={showCutLines}
+          open={puzzleOpen}
+          onClose={() => setPuzzleOpen(false)}
           onStageChange={(s) => {
             setStage(s);
             if (s === "cut") setShowCutLines(true);

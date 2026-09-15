@@ -177,6 +177,18 @@ button {
   min-height: 0;
 }
 
+.color-rail {
+  display: none;
+}
+
+.puzzle-close {
+  display: none;
+}
+
+.puzzle-sheet-backdrop {
+  display: none;
+}
+
 .panel {
   background: var(--panel);
   border: 3px solid var(--panel-border);
@@ -878,17 +890,247 @@ button {
   }
 }
 
+/* Tablet (both orientations): the canvas fills essentially all the
+   available height and width; the tool and color panels compress into
+   narrow icon rails flanking it, like a slimmer version of the desktop
+   3-column layout, rather than stacking full panels above/below it (which
+   either pushed the canvas off-screen or left it cramped). Puzzle settings
+   (used less often, and only in the Cut/Print phase) move into a slide-in
+   sheet instead of a permanent third column. */
 @media (max-width: 1100px) {
+  .studio {
+    height: 100dvh;
+    height: 100vh;
+  }
+
   .studio-body {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: minmax(60px, 78px) 1fr minmax(72px, 92px);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.5rem;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  .panel {
-    max-height: none;
+  .canvas-stage {
+    min-height: 0;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
   }
 
+  /* max-width/max-height only — NOT width/height:100%. The frame is a flex
+     item with no explicit width, so it shrink-wraps to whatever size its
+     content (the canvas) actually renders at, capped by the available
+     cell. Giving it width/height:100% (an earlier attempt) made the frame
+     itself fill the whole cell while the correctly-proportioned canvas
+     letterboxed inside it — the decorative border/shadow ring then
+     outlined empty cell space instead of the page, which is what read as
+     "the white canvas extends past the page." */
+  .canvas-frame {
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Both width and height stay 'auto' — the canvas's own intrinsic
+     816x1056 ratio (from its width/height HTML attributes) then governs
+     sizing, and the browser picks whichever of max-width/max-height binds
+     tighter and scales the other axis to match, with no skew. (Tried
+     object-fit: contain first since canvas is a replaced element in
+     principle — but this Chrome build doesn't honor it on <canvas>, so
+     falling back to the same max-width/height + auto/auto technique that
+     has made `img{max-width:100%;height:auto}` reliable for decades.) */
   .painting-canvas {
-    width: min(90vw, 520px);
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  /* Left rail: tools. Icon-only, stacked vertically — a vertical rail has
+     height to spare in both orientations, unlike a horizontal strip. */
+  .tool-panel {
+    max-height: none;
+    overflow-y: auto;
+    padding: 0.4rem 0.3rem;
+    gap: 0.5rem;
+  }
+
+  .tool-panel .panel-title,
+  .color-section,
+  .size-section {
+    display: none;
+  }
+
+  .pages-launch {
+    padding: 0.5rem;
+    justify-content: center;
+  }
+
+  .pages-launch span:not(.pages-launch-icon) {
+    display: none;
+  }
+
+  .tool-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .tool-btn {
+    width: 100%;
+    flex-direction: column;
+    padding: 0.45rem 0.15rem;
+    font-size: 0.58rem;
+  }
+
+  .stamp-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-height: 30vh;
+    overflow-y: auto;
+  }
+
+  .size-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  /* Right rail: current color + up to 3 recents + "more" (opens the full
+     grid in a popover) + the puzzle-sheet trigger. */
+  .color-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.3rem;
+    overflow-y: auto;
+  }
+
+  .color-rail-current {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 999px;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #ffd0e4;
+    flex-shrink: 0;
+  }
+
+  .color-rail-swatch {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 999px;
+    border: 2px solid rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+  }
+
+  .color-rail-more,
+  .color-rail-puzzle {
+    width: 100%;
+    border: none;
+    background: #fff7fb;
+    border-radius: 14px;
+    padding: 0.45rem 0.15rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .color-rail-more span:first-child,
+  .color-rail-puzzle span:first-child {
+    font-size: 1.1rem;
+  }
+
+  .color-rail-sizes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .color-rail-size-btn {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 999px;
+    border: 2px solid #ffe0ef;
+    background: #fff7fb;
+    display: grid;
+    place-items: center;
+  }
+
+  .color-rail-size-btn.active {
+    background: var(--candy-lemon);
+    border-color: #f0c000;
+  }
+
+  .color-rail-size-btn .size-dot {
+    background: var(--ink);
+  }
+
+  .color-rail-puzzle {
+    margin-top: auto;
+    background: var(--candy-lemon);
+  }
+
+  .color-picker-modal .color-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  /* Puzzle settings become a slide-in sheet instead of a static column.
+     `animation: none` is required here: the base .panel `rise-in` keyframes
+     also animate `transform`, and with `animation-fill-mode: both` its final
+     keyframe (translateY(0)) permanently wins over the translateX(100%)
+     below once the animation ends, leaving the "closed" sheet stuck
+     on-screen. */
+  .puzzle-panel {
+    animation: none;
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100dvh;
+    height: 100vh;
+    width: min(82vw, 320px);
+    max-height: none;
+    border-radius: 20px 0 0 20px;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 40;
+    box-shadow: -10px 0 30px rgba(43, 27, 61, 0.25);
+  }
+
+  .puzzle-panel.sheet-open {
+    transform: translateX(0);
+  }
+
+  .puzzle-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 999px;
+    background: #fff0f6;
+    color: var(--ink);
+    font-weight: 800;
+  }
+
+  .puzzle-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 27, 61, 0.35);
+    z-index: 39;
   }
 }
 

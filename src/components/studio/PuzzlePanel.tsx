@@ -12,6 +12,8 @@ interface PuzzlePanelProps {
   shape: PieceShape;
   difficulty: Difficulty;
   showCutLines: boolean;
+  open: boolean;
+  onClose: () => void;
   onStageChange: (stage: Stage) => void;
   onShapeChange: (shape: PieceShape) => void;
   onDifficultyChange: (d: Difficulty) => void;
@@ -24,6 +26,8 @@ export function PuzzlePanel({
   shape,
   difficulty,
   showCutLines,
+  open,
+  onClose,
   onStageChange,
   onShapeChange,
   onDifficultyChange,
@@ -31,7 +35,16 @@ export function PuzzlePanel({
   onPreview,
 }: PuzzlePanelProps) {
   return (
-    <aside className="panel puzzle-panel">
+    <aside className={`panel puzzle-panel ${open ? "sheet-open" : ""}`}>
+      <button
+        type="button"
+        className="puzzle-close"
+        onClick={onClose}
+        aria-label="Close puzzle settings"
+      >
+        ✕
+      </button>
+
       <div className="stage-tabs" role="tablist" aria-label="Studio stages">
         {(
           [
