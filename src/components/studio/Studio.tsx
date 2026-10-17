@@ -266,9 +266,9 @@ export function Studio() {
     <div className="studio">
       <header className="studio-header">
         <div className="brand">
-          <span className="brand-mark" aria-hidden>
-            🎨
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- tiny static logo; next/image adds nothing here */}
+          <img className="brand-mark" src="/icon-192.png" alt="" aria-hidden />
+
           <div>
             <h1>Puzzle Painter</h1>
             <p>Paint it. Cut it. Solve it!</p>
