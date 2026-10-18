@@ -116,9 +116,7 @@ export function Studio() {
     const saved = loadStudioState();
     hydrated.current = true;
     if (!saved) {
-      void canvasRef.current?.loadTemplateSvg(
-        getTemplateById("blank")?.svg ?? "",
-      );
+      void canvasRef.current?.loadTemplateImage(null);
       return;
     }
 
@@ -138,7 +136,7 @@ export function Studio() {
         await canvasRef.current?.loadTemplateSvg(saved.customTemplateSvg);
       } else if (saved.templateId) {
         const t = getTemplateById(saved.templateId);
-        await canvasRef.current?.loadTemplateSvg(t?.svg ?? "");
+        await canvasRef.current?.loadTemplateImage(t?.image ?? null);
       }
       if (saved.paintDataUrl) {
         await canvasRef.current?.restorePaintDataUrl(saved.paintDataUrl);
@@ -170,7 +168,7 @@ export function Studio() {
     if (!t) return;
     setTemplateId(id);
     setCustomSvg(null);
-    await canvasRef.current?.loadTemplateSvg(t.svg);
+    await canvasRef.current?.loadTemplateImage(t.image);
     if (resetPaint) {
       canvasRef.current?.clearPaint();
       syncHistory();
@@ -254,9 +252,7 @@ export function Studio() {
     setShowCutLines(false);
     setTool("brush");
     void (async () => {
-      await canvasRef.current?.loadTemplateSvg(
-        getTemplateById("blank")?.svg ?? "",
-      );
+      await canvasRef.current?.loadTemplateImage(null);
       canvasRef.current?.clearPaint();
       syncHistory();
     })();

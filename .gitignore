@@ -43,3 +43,6 @@ next-env.d.ts
 /dist/
 .vinext/
 .wrangler/
+
+# personal source images, processed into public/pages/ and then deleted
+/public/personalupload/

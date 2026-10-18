@@ -10,7 +10,7 @@ import {
 import { BRUSH_SIZE_PX, CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/constants";
 import { floodFill, getCanvasPoint } from "@/lib/drawing";
 import { drawCutLines } from "@/lib/puzzleShapes";
-import { renderSvgToCanvas } from "@/lib/templates";
+import { renderImageToCanvas, renderSvgToCanvas } from "@/lib/templates";
 import type { BrushSize, Difficulty, PieceShape, ToolId } from "@/types/studio";
 
 export interface PaintingCanvasHandle {
@@ -18,6 +18,7 @@ export interface PaintingCanvasHandle {
   redo: () => void;
   clearPaint: () => void;
   loadTemplateSvg: (svg: string) => Promise<void>;
+  loadTemplateImage: (url: string | null) => Promise<void>;
   restorePaintDataUrl: (dataUrl: string) => Promise<void>;
   getPaintDataUrl: () => string;
   getPaintCanvas: () => HTMLCanvasElement | null;
@@ -187,6 +188,13 @@ export const PaintingCanvas = forwardRef<
         const lines = linesRef.current;
         if (!lines) return;
         await renderSvgToCanvas(lines, svg);
+        composite();
+      },
+      loadTemplateImage: async (url: string | null) => {
+        ensureLayers();
+        const lines = linesRef.current;
+        if (!lines) return;
+        await renderImageToCanvas(lines, url);
         composite();
       },
       restorePaintDataUrl: async (dataUrl: string) => {

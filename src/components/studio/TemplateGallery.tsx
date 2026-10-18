@@ -14,11 +14,17 @@ interface TemplateGalleryProps {
 const THEMES = [
   { id: "all", label: "All" },
   { id: "animals", label: "Animals" },
+  { id: "nature", label: "Nature" },
   { id: "food", label: "Food" },
   { id: "space", label: "Space" },
   { id: "balls", label: "Balls" },
   { id: "vehicles", label: "Vehicles" },
 ] as const;
+
+// Only offer tabs for themes that have at least one page.
+const VISIBLE_THEMES = THEMES.filter(
+  (th) => th.id === "all" || TEMPLATES.some((t) => t.theme === th.id),
+);
 
 export function TemplateGallery({
   open,
@@ -70,7 +76,7 @@ export function TemplateGallery({
         </button>
 
         <div className="theme-chips">
-          {THEMES.map((t) => (
+          {VISIBLE_THEMES.map((t) => (
             <button
               key={t.id}
               type="button"
@@ -94,13 +100,11 @@ export function TemplateGallery({
               }}
             >
               <div className="gallery-thumb">
-                {t.id === "blank" ? (
-                  <span className="blank-thumb">✏️</span>
+                {t.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- static line-art thumbnail
+                  <img className="thumb-img" src={t.image} alt="" loading="lazy" />
                 ) : (
-                  <div
-                    className="thumb-svg"
-                    dangerouslySetInnerHTML={{ __html: scaleThumb(t.svg) }}
-                  />
+                  <span className="blank-thumb">✏️</span>
                 )}
               </div>
               <span className="gallery-label">{t.name}</span>
@@ -110,11 +114,4 @@ export function TemplateGallery({
       </div>
     </div>
   );
-}
-
-function scaleThumb(svg: string): string {
-  return svg
-    .replace(/width="[^"]*"/, 'width="100%"')
-    .replace(/height="[^"]*"/, 'height="100%"')
-    .replace(/stroke-width="3"/g, 'stroke-width="5"');
 }

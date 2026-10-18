@@ -24,8 +24,9 @@ export interface StampItem {
 export interface TemplateItem {
   id: string;
   name: string;
-  theme: "animals" | "food" | "space" | "balls" | "vehicles" | "blank";
-  svg: string;
+  theme: "animals" | "nature" | "food" | "space" | "balls" | "vehicles" | "blank";
+  /** URL of a transparent line-art PNG sized to the canvas; null for a blank page. */
+  image: string | null;
 }
 
 export interface PuzzleSettings {
