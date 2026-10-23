@@ -55,6 +55,40 @@ button {
   cursor: pointer;
 }
 
+/* Candy scrollbars to match the header, replacing the OS default.
+   Chromium/Safari use the pseudo-elements; Chromium ignores them if
+   scrollbar-color is set, so the standard properties are Firefox-only. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fff0f6;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--candy-pink), var(--candy-orange));
+  border: 3px solid #fff0f6;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ff2f7a, var(--candy-coral));
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--candy-pink) #fff0f6;
+  }
+}
+
 .studio {
   min-height: 100%;
   display: flex;
