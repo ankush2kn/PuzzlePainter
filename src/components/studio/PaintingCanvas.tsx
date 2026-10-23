@@ -6,9 +6,16 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from "react";
 import { BRUSH_SIZE_PX, CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/constants";
-import { floodFill, getCanvasPoint } from "@/lib/drawing";
+import { getFallbackCursor, getToolCursor } from "@/lib/cursors";
+import {
+  floodFill,
+  getCanvasPoint,
+  strokeWidth,
+  toolAlpha,
+} from "@/lib/drawing";
 import { drawCutLines } from "@/lib/puzzleShapes";
 import { renderImageToCanvas, renderSvgToCanvas } from "@/lib/templates";
 import type { BrushSize, Difficulty, PieceShape, ToolId } from "@/types/studio";
@@ -31,6 +38,8 @@ export interface PaintingCanvasHandle {
 interface PaintingCanvasProps {
   tool: ToolId;
   color: string;
+  /** 0–1 strength of `color`, applied to brush/pencil/marker/fill/text. */
+  opacity: number;
   brushSize: BrushSize;
   stampEmoji: string;
   textValue: string;
@@ -50,6 +59,7 @@ export const PaintingCanvas = forwardRef<
   {
     tool,
     color,
+    opacity,
     brushSize,
     stampEmoji,
     textValue,
@@ -64,18 +74,25 @@ export const PaintingCanvas = forwardRef<
   const displayRef = useRef<HTMLCanvasElement>(null);
   const paintRef = useRef<HTMLCanvasElement | null>(null);
   const linesRef = useRef<HTMLCanvasElement | null>(null);
+  // The in-progress stroke is drawn opaque here and laid onto the paint layer
+  // at its alpha when it ends, so translucent strokes don't darken wherever
+  // their segments overlap. strokeAlpha is null when no such stroke is active.
+  const strokeRef = useRef<HTMLCanvasElement | null>(null);
+  const strokeAlpha = useRef<number | null>(null);
   const drawing = useRef(false);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
   const history = useRef<ImageData[]>([]);
   const historyIndex = useRef(-1);
   const toolRef = useRef(tool);
   const colorRef = useRef(color);
+  const opacityRef = useRef(opacity);
   const sizeRef = useRef(brushSize);
   const stampRef = useRef(stampEmoji);
   const textRef = useRef(textValue);
 
   toolRef.current = tool;
   colorRef.current = color;
+  opacityRef.current = opacity;
   sizeRef.current = brushSize;
   stampRef.current = stampEmoji;
   textRef.current = textValue;
@@ -93,6 +110,12 @@ export const PaintingCanvas = forwardRef<
       c.height = CANVAS_HEIGHT;
       linesRef.current = c;
     }
+    if (!strokeRef.current) {
+      const c = document.createElement("canvas");
+      c.width = CANVAS_WIDTH;
+      c.height = CANVAS_HEIGHT;
+      strokeRef.current = c;
+    }
   }, []);
 
   const composite = useCallback(() => {
@@ -106,6 +129,11 @@ export const PaintingCanvas = forwardRef<
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     ctx.drawImage(paint, 0, 0);
+    if (strokeAlpha.current !== null && strokeRef.current) {
+      ctx.globalAlpha = strokeAlpha.current;
+      ctx.drawImage(strokeRef.current, 0, 0);
+      ctx.globalAlpha = 1;
+    }
     ctx.drawImage(lines, 0, 0);
     if (showCutLines) {
       drawCutLines(ctx, pieceShape, difficulty);
@@ -242,36 +270,29 @@ export const PaintingCanvas = forwardRef<
 
   const paintStroke = (x: number, y: number, isStart: boolean) => {
     ensureLayers();
-    const paint = paintRef.current;
-    if (!paint) return;
-    const ctx = paint.getContext("2d");
-    if (!ctx) return;
-
     const t = toolRef.current;
-    const size = BRUSH_SIZE_PX[sizeRef.current];
-    const col = colorRef.current;
+    // Eraser cuts straight into the paint layer; color tools go through the
+    // stroke layer (see strokeRef).
+    const target = t === "eraser" ? paintRef.current : strokeRef.current;
+    if (!target) return;
+    const ctx = target.getContext("2d");
+    if (!ctx) return;
 
     if (t === "eraser") {
       ctx.globalCompositeOperation = "destination-out";
       ctx.strokeStyle = "rgba(0,0,0,1)";
       ctx.fillStyle = "rgba(0,0,0,1)";
     } else {
+      if (isStart) {
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        strokeAlpha.current = toolAlpha(t) * opacityRef.current;
+      }
       ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = col;
-      ctx.fillStyle = col;
+      ctx.strokeStyle = colorRef.current;
+      ctx.fillStyle = colorRef.current;
     }
 
-    if (t === "marker") {
-      ctx.globalAlpha = 0.35;
-      ctx.lineWidth = size * 1.6;
-    } else if (t === "pencil") {
-      ctx.globalAlpha = 0.9;
-      ctx.lineWidth = Math.max(1.5, size * 0.35);
-    } else {
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = size;
-    }
-
+    ctx.lineWidth = strokeWidth(t, BRUSH_SIZE_PX[sizeRef.current]);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
@@ -286,9 +307,22 @@ export const PaintingCanvas = forwardRef<
       ctx.lineTo(x, y);
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
     lastPoint.current = { x, y };
+    composite();
+  };
+
+  /** Lays the finished stroke-layer stroke onto the paint layer at its alpha. */
+  const commitStroke = () => {
+    const alpha = strokeAlpha.current;
+    const stroke = strokeRef.current;
+    const ctx = paintRef.current?.getContext("2d");
+    if (alpha === null || !stroke || !ctx) return;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(stroke, 0, 0);
+    ctx.globalAlpha = 1;
+    strokeAlpha.current = null;
+    stroke.getContext("2d")?.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     composite();
   };
 
@@ -310,10 +344,12 @@ export const PaintingCanvas = forwardRef<
       const size = BRUSH_SIZE_PX[sizeRef.current] * 2.4;
       ctx.font = `700 ${size}px Fredoka, Nunito, sans-serif`;
       ctx.fillStyle = colorRef.current;
+      ctx.globalAlpha = opacityRef.current;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const value = textRef.current.trim() || "Hello!";
       ctx.fillText(value, x, y);
+      ctx.globalAlpha = 1;
     }
     composite();
   };
@@ -339,6 +375,7 @@ export const PaintingCanvas = forwardRef<
         x,
         y,
         fillColor: colorRef.current,
+        opacity: opacityRef.current,
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
       });
@@ -372,18 +409,44 @@ export const PaintingCanvas = forwardRef<
     if (!drawing.current) return;
     drawing.current = false;
     lastPoint.current = null;
+    commitStroke();
     pushHistory();
     onPainted?.();
   };
 
-  const cursor =
-    tool === "fill"
-      ? "cell"
-      : tool === "text" || tool === "stamp"
-        ? "copy"
-        : tool === "eraser"
-          ? "cell"
-          : "crosshair";
+  // Icon cursors need a DOM canvas, so build them after mount to keep the
+  // server render (keyword cursor) and first client render in agreement.
+  const [cursor, setCursor] = useState(() => getFallbackCursor(tool));
+  // On-screen px per canvas px. Re-measured on resize and on pointer enter,
+  // since the zoom control scales the frame with a transform, which
+  // ResizeObserver doesn't report.
+  const [displayScale, setDisplayScale] = useState(1);
+  const measureScale = useCallback(() => {
+    const canvas = displayRef.current;
+    if (!canvas) return;
+    const width = canvas.getBoundingClientRect().width;
+    if (width > 0) setDisplayScale(width / CANVAS_WIDTH);
+  }, []);
+  useEffect(() => {
+    const canvas = displayRef.current;
+    if (!canvas) return;
+    measureScale();
+    const observer = new ResizeObserver(measureScale);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [measureScale]);
+  useEffect(() => {
+    setCursor(
+      getToolCursor({
+        tool,
+        color,
+        opacity,
+        stampEmoji,
+        sizePx: BRUSH_SIZE_PX[brushSize],
+        scale: displayScale,
+      }),
+    );
+  }, [tool, color, opacity, stampEmoji, brushSize, displayScale]);
 
   return (
     <canvas
@@ -392,6 +455,7 @@ export const PaintingCanvas = forwardRef<
       height={CANVAS_HEIGHT}
       className="painting-canvas"
       style={{ cursor }}
+      onPointerEnter={measureScale}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={endStroke}

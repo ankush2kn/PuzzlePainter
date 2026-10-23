@@ -39,6 +39,7 @@ export function Studio() {
 
   const [tool, setTool] = useState<ToolId>("brush");
   const [color, setColor] = useState(DEFAULT_COLOR);
+  const [opacity, setOpacity] = useState(1);
   const [brushSize, setBrushSize] = useState<BrushSize>("md");
   const [stampId, setStampId] = useState("rainbow");
   const [textValue, setTextValue] = useState("Hello!");
@@ -86,6 +87,7 @@ export function Studio() {
       customTemplateSvg: customSvg,
       tool,
       color,
+      opacity,
       secondaryColor: DEFAULT_SECONDARY,
       brushSize,
       stampId,
@@ -97,6 +99,7 @@ export function Studio() {
     color,
     customSvg,
     difficulty,
+    opacity,
     shape,
     showCutLines,
     stampId,
@@ -122,6 +125,7 @@ export function Studio() {
 
     setTool(saved.tool);
     setColor(saved.color);
+    setOpacity(saved.opacity ?? 1);
     setBrushSize(saved.brushSize);
     setStampId(saved.stampId);
     setTextValue(saved.textValue);
@@ -152,6 +156,7 @@ export function Studio() {
   }, [
     tool,
     color,
+    opacity,
     brushSize,
     stampId,
     textValue,
@@ -340,11 +345,13 @@ export function Studio() {
         <ToolPanel
           tool={tool}
           color={color}
+          opacity={opacity}
           brushSize={brushSize}
           stampId={stampId}
           textValue={textValue}
           onToolChange={setTool}
           onColorChange={handleColorChange}
+          onOpacityChange={setOpacity}
           onBrushSizeChange={setBrushSize}
           onStampChange={setStampId}
           onTextChange={setTextValue}
@@ -360,6 +367,7 @@ export function Studio() {
               ref={canvasRef}
               tool={tool}
               color={color}
+              opacity={opacity}
               brushSize={brushSize}
               stampEmoji={stampEmoji}
               textValue={textValue}

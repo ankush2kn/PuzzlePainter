@@ -42,6 +42,8 @@ export interface StudioPersistedState {
   customTemplateSvg: string | null;
   tool: ToolId;
   color: string;
+  /** 0–1 strength of `color`. Optional: saves from before it existed load as 1. */
+  opacity?: number;
   secondaryColor: string;
   brushSize: BrushSize;
   stampId: string;

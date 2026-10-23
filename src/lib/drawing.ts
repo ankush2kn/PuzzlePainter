@@ -1,3 +1,5 @@
+import type { ToolId } from "@/types/studio";
+
 /** Scanline flood fill. Barriers = dark pixels on the lines layer OR already filled differently. */
 export function floodFill(options: {
   paintCtx: CanvasRenderingContext2D;
@@ -5,6 +7,8 @@ export function floodFill(options: {
   x: number;
   y: number;
   fillColor: string;
+  /** 0–1; a translucent fill is blended over the region's existing color. */
+  opacity?: number;
   width: number;
   height: number;
 }): void {
@@ -18,7 +22,6 @@ export function floodFill(options: {
   const pdata = paintData.data;
   const ldata = linesData.data;
 
-  const fill = parseCssColor(options.fillColor);
   const startIdx = (startY * width + startX) * 4;
   const target: [number, number, number, number] = [
     pdata[startIdx],
@@ -29,6 +32,13 @@ export function floodFill(options: {
 
   // Don't fill if clicking on a line
   if (isBarrier(ldata, startIdx)) return;
+
+  // The region is one color (within tolerance), so the blended result is too.
+  const fill = blendOver(
+    parseCssColor(options.fillColor),
+    options.opacity ?? 1,
+    target,
+  );
 
   // Already the fill color
   if (colorsMatch(target, fill)) return;
@@ -129,6 +139,35 @@ function colorsMatch(
     Math.abs(a[2] - b[2]) <= tolerance &&
     Math.abs(a[3] - b[3]) <= tolerance
   );
+}
+
+/** Source-over blend of `src` (at `alpha`) onto `dst`, straight (non-premultiplied) RGBA. */
+function blendOver(
+  src: [number, number, number, number],
+  alpha: number,
+  dst: [number, number, number, number],
+): [number, number, number, number] {
+  const sa = (src[3] / 255) * alpha;
+  const da = dst[3] / 255;
+  const oa = sa + da * (1 - sa);
+  if (oa === 0) return [0, 0, 0, 0];
+  const ch = (i: number) =>
+    Math.round((src[i] * sa + dst[i] * da * (1 - sa)) / oa);
+  return [ch(0), ch(1), ch(2), Math.round(oa * 255)];
+}
+
+/** Stroke width in canvas px for a drawing tool — shared by painting and the cursor preview. */
+export function strokeWidth(tool: ToolId, sizePx: number): number {
+  if (tool === "marker") return sizePx * 1.6;
+  if (tool === "pencil") return Math.max(1.5, sizePx * 0.35);
+  return sizePx;
+}
+
+/** Per-stroke alpha a tool applies on top of the user's chosen opacity. */
+export function toolAlpha(tool: ToolId): number {
+  if (tool === "marker") return 0.35;
+  if (tool === "pencil") return 0.9;
+  return 1;
 }
 
 function parseCssColor(color: string): [number, number, number, number] {

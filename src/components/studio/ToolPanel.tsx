@@ -5,6 +5,7 @@ import {
   CANDY_COLORS,
   STAMPS,
 } from "@/lib/constants";
+import { OpacityBar } from "@/components/studio/OpacityBar";
 import type { BrushSize, ToolId } from "@/types/studio";
 
 const TOOLS: { id: ToolId; label: string; icon: string }[] = [
@@ -12,9 +13,9 @@ const TOOLS: { id: ToolId; label: string; icon: string }[] = [
   { id: "pencil", label: "Pencil", icon: "✏️" },
   { id: "marker", label: "Marker", icon: "🖊️" },
   { id: "fill", label: "Fill", icon: "🪣" },
-  { id: "eraser", label: "Eraser", icon: "🧹" },
-  { id: "text", label: "Text", icon: "🔤" },
   { id: "stamp", label: "Stamp", icon: "⭐" },
+  { id: "text", label: "Text", icon: "🔤" },
+  { id: "eraser", label: "Eraser", icon: "🧹" },
 ];
 
 const SIZES: BrushSize[] = ["sm", "md", "lg"];
@@ -22,11 +23,13 @@ const SIZES: BrushSize[] = ["sm", "md", "lg"];
 interface ToolPanelProps {
   tool: ToolId;
   color: string;
+  opacity: number;
   brushSize: BrushSize;
   stampId: string;
   textValue: string;
   onToolChange: (tool: ToolId) => void;
   onColorChange: (color: string) => void;
+  onOpacityChange: (opacity: number) => void;
   onBrushSizeChange: (size: BrushSize) => void;
   onStampChange: (id: string) => void;
   onTextChange: (value: string) => void;
@@ -36,11 +39,13 @@ interface ToolPanelProps {
 export function ToolPanel({
   tool,
   color,
+  opacity,
   brushSize,
   stampId,
   textValue,
   onToolChange,
   onColorChange,
+  onOpacityChange,
   onBrushSizeChange,
   onStampChange,
   onTextChange,
@@ -110,7 +115,11 @@ export function ToolPanel({
 
       <section className="color-section">
         <h2 className="panel-title">Color</h2>
-        <div className="color-current" style={{ background: color }} />
+        <OpacityBar
+          color={color}
+          opacity={opacity}
+          onOpacityChange={onOpacityChange}
+        />
         <div className="color-grid">
           {CANDY_COLORS.map((c) => (
             <button

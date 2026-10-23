@@ -336,6 +336,47 @@ button {
   margin-bottom: 0.55rem;
 }
 
+.opacity-bar-wrap {
+  margin-bottom: 0.55rem;
+}
+
+/* Fades the chosen color from clear (left) to solid (right) over a
+   checkerboard, so the see-through end visibly shows what's behind it. */
+.opacity-bar {
+  position: relative;
+  margin-bottom: 0.25rem;
+  cursor: pointer;
+  touch-action: none;
+  background:
+    linear-gradient(to right, transparent, var(--bar-color)),
+    repeating-conic-gradient(#e9e3ef 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px;
+}
+
+.opacity-bar:focus-visible {
+  outline: 3px solid var(--ink-soft);
+  outline-offset: 3px;
+}
+
+.opacity-bar-thumb {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 8px;
+  transform: translateX(-50%);
+  border-radius: 6px;
+  background: white;
+  border: 2px solid rgba(43, 27, 61, 0.75);
+  box-shadow: 0 1px 3px rgba(43, 27, 61, 0.3);
+  pointer-events: none;
+}
+
+.opacity-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+}
+
 .color-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
