@@ -1,5 +1,5 @@
-import type { TemplateItem } from "@/types/studio";
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/constants";
+import type { Orientation, TemplateItem } from "@/types/studio";
+import { CANVAS_SIZE } from "@/lib/constants";
 
 // Built-in pages are transparent line-art PNGs in public/pages/, produced from
 // generated artwork by scripts/prepare-page.mjs.
@@ -116,10 +116,27 @@ export async function renderSvgToCanvas(
   const url = URL.createObjectURL(blob);
   try {
     const img = await loadImage(url);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    if (isLandscapeSvg(svg)) {
+      // Generated while viewing landscape: lay it onto the portrait page
+      // turned counter-clockwise, so it reads upright in the landscape view
+      // (the inverse of applyViewTransform in lib/drawing.ts).
+      ctx.save();
+      ctx.transform(0, -1, 1, 0, 0, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.height, canvas.width);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    }
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+function isLandscapeSvg(svg: string): boolean {
+  const viewBox = svg.match(/viewBox\s*=\s*["']([^"']*)["']/i);
+  if (!viewBox) return false;
+  const [, , w, h] = viewBox[1].trim().split(/[\s,]+/).map(Number);
+  return w > h;
 }
 
 /** Draw a built-in page's line-art image onto a canvas (lines layer); null clears it. */
@@ -148,7 +165,10 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-export function sanitizeSvg(raw: string): string | null {
+export function sanitizeSvg(
+  raw: string,
+  orientation: Orientation = "portrait",
+): string | null {
   let svg = raw.trim();
   // Extract svg block if wrapped in markdown/code
   const match = svg.match(/<svg[\s\S]*?<\/svg>/i);
@@ -170,7 +190,7 @@ export function sanitizeSvg(raw: string): string | null {
   if (!/viewBox=/.test(svg)) {
     svg = svg.replace(
       /<svg/i,
-      `<svg viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}"`,
+      `<svg viewBox="0 0 ${CANVAS_SIZE[orientation].width} ${CANVAS_SIZE[orientation].height}"`,
     );
   }
 

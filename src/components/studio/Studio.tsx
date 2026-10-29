@@ -12,6 +12,7 @@ import { getTemplateById } from "@/lib/templates";
 import type {
   BrushSize,
   Difficulty,
+  Orientation,
   PieceShape,
   Stage,
   ToolId,
@@ -47,6 +48,7 @@ export function Studio() {
   const [shape, setShape] = useState<PieceShape>("rectangle");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [showCutLines, setShowCutLines] = useState(false);
+  const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [templateId, setTemplateId] = useState<string | null>("blank");
   const [customSvg, setCustomSvg] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -88,6 +90,7 @@ export function Studio() {
       tool,
       color,
       opacity,
+      orientation,
       secondaryColor: DEFAULT_SECONDARY,
       brushSize,
       stampId,
@@ -100,6 +103,7 @@ export function Studio() {
     customSvg,
     difficulty,
     opacity,
+    orientation,
     shape,
     showCutLines,
     stampId,
@@ -126,6 +130,7 @@ export function Studio() {
     setTool(saved.tool);
     setColor(saved.color);
     setOpacity(saved.opacity ?? 1);
+    setOrientation(saved.orientation ?? "portrait");
     setBrushSize(saved.brushSize);
     setStampId(saved.stampId);
     setTextValue(saved.textValue);
@@ -157,6 +162,7 @@ export function Studio() {
     tool,
     color,
     opacity,
+    orientation,
     brushSize,
     stampId,
     textValue,
@@ -234,6 +240,7 @@ export function Studio() {
       shape,
       difficulty,
       includeCutLines: true,
+      orientation,
     });
     setExportCanvas(composed);
     setPreviewUrl(composed.toDataURL("image/png"));
@@ -314,6 +321,28 @@ export function Studio() {
           >
             🗑️
           </button>
+          <div className="orientation-toggle" role="group" aria-label="Page orientation">
+            <button
+              type="button"
+              className={orientation === "portrait" ? "active" : ""}
+              onClick={() => setOrientation("portrait")}
+              aria-pressed={orientation === "portrait"}
+              aria-label="Portrait"
+              title="Portrait"
+            >
+              <span className="orientation-glyph portrait" aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={orientation === "landscape" ? "active" : ""}
+              onClick={() => setOrientation("landscape")}
+              aria-pressed={orientation === "landscape"}
+              aria-label="Landscape"
+              title="Landscape — turns the page sideways"
+            >
+              <span className="orientation-glyph landscape" aria-hidden />
+            </button>
+          </div>
           <div className="zoom-control">
             <button
               type="button"
@@ -365,6 +394,7 @@ export function Studio() {
           >
             <PaintingCanvas
               ref={canvasRef}
+              orientation={orientation}
               tool={tool}
               color={color}
               opacity={opacity}
@@ -419,6 +449,7 @@ export function Studio() {
       <TemplateGallery
         open={galleryOpen}
         activeTemplateId={templateId}
+        orientation={orientation}
         onClose={() => setGalleryOpen(false)}
         onSelect={requestTemplate}
         onDescribe={() => {
@@ -427,8 +458,11 @@ export function Studio() {
         }}
       />
 
+      {/* Keyed so a preview made for the other orientation is discarded. */}
       <DescribePageModal
+        key={orientation}
         open={describeOpen}
+        orientation={orientation}
         onClose={() => setDescribeOpen(false)}
         onGenerated={requestCustomSvg}
       />

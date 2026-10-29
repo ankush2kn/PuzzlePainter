@@ -1,8 +1,20 @@
-import type { BrushSize, Difficulty, PieceShape, StampItem } from "@/types/studio";
+import type {
+  BrushSize,
+  Difficulty,
+  Orientation,
+  PieceShape,
+  StampItem,
+} from "@/types/studio";
 
 /** US Letter at 96dpi — good screen size; export scales up for print. */
 export const CANVAS_WIDTH = 816;
 export const CANVAS_HEIGHT = 1056;
+
+/** Landscape is the same letter page turned sideways (11x8.5in). */
+export const CANVAS_SIZE: Record<Orientation, { width: number; height: number }> = {
+  portrait: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT },
+  landscape: { width: CANVAS_HEIGHT, height: CANVAS_WIDTH },
+};
 export const PRINT_SCALE = 2;
 
 export const STORAGE_KEY = "puzzle-painter-v1";

@@ -8,17 +8,30 @@ import {
   useRef,
   useState,
 } from "react";
-import { BRUSH_SIZE_PX, CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/constants";
+import {
+  BRUSH_SIZE_PX,
+  CANVAS_HEIGHT,
+  CANVAS_SIZE,
+  CANVAS_WIDTH,
+} from "@/lib/constants";
 import { getFallbackCursor, getToolCursor } from "@/lib/cursors";
 import {
+  applyViewTransform,
   floodFill,
   getCanvasPoint,
   strokeWidth,
   toolAlpha,
+  viewToPage,
 } from "@/lib/drawing";
 import { drawCutLines } from "@/lib/puzzleShapes";
 import { renderImageToCanvas, renderSvgToCanvas } from "@/lib/templates";
-import type { BrushSize, Difficulty, PieceShape, ToolId } from "@/types/studio";
+import type {
+  BrushSize,
+  Difficulty,
+  Orientation,
+  PieceShape,
+  ToolId,
+} from "@/types/studio";
 
 export interface PaintingCanvasHandle {
   undo: () => void;
@@ -36,6 +49,11 @@ export interface PaintingCanvasHandle {
 }
 
 interface PaintingCanvasProps {
+  /**
+   * How the page is shown. Only the visible canvas turns; the paint/lines
+   * layers and undo history always stay portrait (see lib/drawing.ts).
+   */
+  orientation: Orientation;
   tool: ToolId;
   color: string;
   /** 0–1 strength of `color`, applied to brush/pencil/marker/fill/text. */
@@ -57,6 +75,7 @@ export const PaintingCanvas = forwardRef<
   PaintingCanvasProps
 >(function PaintingCanvas(
   {
+    orientation,
     tool,
     color,
     opacity,
@@ -71,6 +90,7 @@ export const PaintingCanvas = forwardRef<
   },
   ref,
 ) {
+  const view = CANVAS_SIZE[orientation];
   const displayRef = useRef<HTMLCanvasElement>(null);
   const paintRef = useRef<HTMLCanvasElement | null>(null);
   const linesRef = useRef<HTMLCanvasElement | null>(null);
@@ -89,7 +109,9 @@ export const PaintingCanvas = forwardRef<
   const sizeRef = useRef(brushSize);
   const stampRef = useRef(stampEmoji);
   const textRef = useRef(textValue);
+  const orientationRef = useRef(orientation);
 
+  orientationRef.current = orientation;
   toolRef.current = tool;
   colorRef.current = color;
   opacityRef.current = opacity;
@@ -126,8 +148,11 @@ export const PaintingCanvas = forwardRef<
     if (!display || !paint || !lines) return;
     const ctx = display.getContext("2d");
     if (!ctx) return;
+    const { width, height } = CANVAS_SIZE[orientation];
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillRect(0, 0, width, height);
+    ctx.save();
+    applyViewTransform(ctx, orientation);
     ctx.drawImage(paint, 0, 0);
     if (strokeAlpha.current !== null && strokeRef.current) {
       ctx.globalAlpha = strokeAlpha.current;
@@ -135,10 +160,12 @@ export const PaintingCanvas = forwardRef<
       ctx.globalAlpha = 1;
     }
     ctx.drawImage(lines, 0, 0);
+    ctx.restore();
+    // Cut lines belong to the printed sheet, so they follow the view.
     if (showCutLines) {
-      drawCutLines(ctx, pieceShape, difficulty);
+      drawCutLines(ctx, pieceShape, difficulty, width, height);
     }
-  }, [difficulty, ensureLayers, pieceShape, showCutLines]);
+  }, [difficulty, ensureLayers, orientation, pieceShape, showCutLines]);
 
   const pushHistory = useCallback(() => {
     ensureLayers();
@@ -183,9 +210,11 @@ export const PaintingCanvas = forwardRef<
     composite();
   }, [composite, ensureLayers, pushHistory]);
 
+  // Also redraws after an orientation change resizes (and so clears) the
+  // visible canvas.
   useEffect(() => {
     composite();
-  }, [composite, showCutLines, pieceShape, difficulty]);
+  }, [composite, showCutLines, pieceShape, difficulty, orientation]);
 
   useImperativeHandle(
     ref,
@@ -334,12 +363,16 @@ export const PaintingCanvas = forwardRef<
     if (!ctx) return;
     const t = toolRef.current;
 
+    // Counter-rotate so stamps and text read upright in a landscape view.
+    ctx.save();
+    ctx.translate(x, y);
+    if (orientationRef.current === "landscape") ctx.rotate(-Math.PI / 2);
     if (t === "stamp") {
       const size = BRUSH_SIZE_PX[sizeRef.current] * 3.2;
       ctx.font = `${size}px serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(stampRef.current, x, y);
+      ctx.fillText(stampRef.current, 0, 0);
     } else if (t === "text") {
       const size = BRUSH_SIZE_PX[sizeRef.current] * 2.4;
       ctx.font = `700 ${size}px Fredoka, Nunito, sans-serif`;
@@ -348,9 +381,9 @@ export const PaintingCanvas = forwardRef<
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const value = textRef.current.trim() || "Hello!";
-      ctx.fillText(value, x, y);
-      ctx.globalAlpha = 1;
+      ctx.fillText(value, 0, 0);
     }
+    ctx.restore();
     composite();
   };
 
@@ -358,7 +391,10 @@ export const PaintingCanvas = forwardRef<
     const canvas = displayRef.current;
     if (!canvas) return;
     canvas.setPointerCapture(e.pointerId);
-    const { x, y } = getCanvasPoint(canvas, e.clientX, e.clientY);
+    const { x, y } = viewToPage(
+      getCanvasPoint(canvas, e.clientX, e.clientY),
+      orientationRef.current,
+    );
     const t = toolRef.current;
 
     if (t === "fill") {
@@ -401,7 +437,10 @@ export const PaintingCanvas = forwardRef<
     if (!drawing.current) return;
     const canvas = displayRef.current;
     if (!canvas) return;
-    const { x, y } = getCanvasPoint(canvas, e.clientX, e.clientY);
+    const { x, y } = viewToPage(
+      getCanvasPoint(canvas, e.clientX, e.clientY),
+      orientationRef.current,
+    );
     paintStroke(x, y, false);
   };
 
@@ -425,7 +464,7 @@ export const PaintingCanvas = forwardRef<
     const canvas = displayRef.current;
     if (!canvas) return;
     const width = canvas.getBoundingClientRect().width;
-    if (width > 0) setDisplayScale(width / CANVAS_WIDTH);
+    if (width > 0) setDisplayScale(width / canvas.width);
   }, []);
   useEffect(() => {
     const canvas = displayRef.current;
@@ -451,9 +490,9 @@ export const PaintingCanvas = forwardRef<
   return (
     <canvas
       ref={displayRef}
-      width={CANVAS_WIDTH}
-      height={CANVAS_HEIGHT}
-      className="painting-canvas"
+      width={view.width}
+      height={view.height}
+      className={`painting-canvas ${orientation}`}
       style={{ cursor }}
       onPointerEnter={measureScale}
       onPointerDown={handlePointerDown}

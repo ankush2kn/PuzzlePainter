@@ -1,9 +1,13 @@
 import type { Difficulty, PieceShape } from "@/types/studio";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, DIFFICULTY_META } from "@/lib/constants";
 
-function pieceCount(difficulty: Difficulty): { cols: number; rows: number } {
+/** DIFFICULTY_META's grid is for a portrait page; turn it sideways for landscape. */
+function pieceCount(
+  difficulty: Difficulty,
+  landscape: boolean,
+): { cols: number; rows: number } {
   const { cols, rows } = DIFFICULTY_META[difficulty];
-  return { cols, rows };
+  return landscape ? { cols: rows, rows: cols } : { cols, rows };
 }
 
 /** Draw dashed cut lines onto a canvas context. */
@@ -14,7 +18,7 @@ export function drawCutLines(
   width = CANVAS_WIDTH,
   height = CANVAS_HEIGHT,
 ): void {
-  const { cols, rows } = pieceCount(difficulty);
+  const { cols, rows } = pieceCount(difficulty, width > height);
   ctx.save();
   ctx.strokeStyle = "rgba(80, 80, 100, 0.55)";
   ctx.lineWidth = 1.5;

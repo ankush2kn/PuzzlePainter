@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { TEMPLATES } from "@/lib/templates";
+import type { Orientation } from "@/types/studio";
 
 interface TemplateGalleryProps {
   open: boolean;
   activeTemplateId: string | null;
+  orientation: Orientation;
   onClose: () => void;
   onSelect: (templateId: string) => void;
   onDescribe: () => void;
@@ -29,6 +31,7 @@ const VISIBLE_THEMES = THEMES.filter(
 export function TemplateGallery({
   open,
   activeTemplateId,
+  orientation,
   onClose,
   onSelect,
   onDescribe,
@@ -97,12 +100,20 @@ export function TemplateGallery({
           ))}
         </div>
 
+        {orientation === "landscape" && (
+          <p className="gallery-note">
+            Our coloring pages are tall. Switch to portrait to use them!
+          </p>
+        )}
+
         <div className="gallery-grid">
           {items.map((t) => (
             <button
               key={t.id}
               type="button"
               className={`gallery-card ${activeTemplateId === t.id ? "active" : ""}`}
+              // Built-in line art is portrait-only.
+              disabled={orientation === "landscape" && t.image !== null}
               onClick={() => {
                 onSelect(t.id);
                 onClose();

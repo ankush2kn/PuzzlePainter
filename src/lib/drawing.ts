@@ -1,4 +1,5 @@
-import type { ToolId } from "@/types/studio";
+import { CANVAS_HEIGHT } from "@/lib/constants";
+import type { Orientation, ToolId } from "@/types/studio";
 
 /** Scanline flood fill. Barriers = dark pixels on the lines layer OR already filled differently. */
 export function floodFill(options: {
@@ -191,4 +192,25 @@ export function getCanvasPoint(
   const x = ((clientX - rect.left) / rect.width) * canvas.width;
   const y = ((clientY - rect.top) / rect.height) * canvas.height;
   return { x, y };
+}
+
+// The page (paint/lines layers, undo history, saves) is always portrait.
+// Landscape is just a way of viewing it: the page turned 90° clockwise.
+
+/** Maps page coordinates to view coordinates on `ctx` (on top of any existing transform). */
+export function applyViewTransform(
+  ctx: CanvasRenderingContext2D,
+  orientation: Orientation,
+): void {
+  if (orientation === "landscape") ctx.transform(0, 1, -1, 0, CANVAS_HEIGHT, 0);
+}
+
+/** Inverse of applyViewTransform for a single point. */
+export function viewToPage(
+  point: { x: number; y: number },
+  orientation: Orientation,
+): { x: number; y: number } {
+  return orientation === "landscape"
+    ? { x: point.y, y: CANVAS_HEIGHT - point.x }
+    : point;
 }

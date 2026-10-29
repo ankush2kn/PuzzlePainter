@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
-import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/constants";
+import { CANVAS_SIZE } from "@/lib/constants";
 import { sanitizeSvg } from "@/lib/templates";
+import type { Orientation } from "@/types/studio";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT = `You create simple black-and-white coloring book pages for children ages 6-10 (especially girls).
+function systemPrompt(orientation: Orientation): string {
+  const { width, height } = CANVAS_SIZE[orientation];
+  return `You create simple black-and-white coloring book pages for children ages 6-10 (especially girls).
 
 Rules:
 - Return ONLY a single valid SVG element. No markdown, no explanation.
-- Root element: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}" width="${CANVAS_WIDTH}" height="${CANVAS_HEIGHT}">
+- Root element: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
 - Use fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" on shapes (or inherit from group).
 - Draw cute, bold outlines with CLOSED shapes so kids can paint-bucket fill regions.
-- Keep it simple: one main subject, a few fun extras (stars, hearts, sparkles), portrait letter layout.
+- Keep it simple: one main subject, a few fun extras (stars, hearts, sparkles), ${orientation} letter layout.
 - No text labels, no foreignObject, no scripts, no images, no external URLs.
 - Friendly, whimsical, not scary.`;
+}
 
 export async function POST(request: Request) {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -28,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   let prompt: string;
+  let orientation: Orientation = "portrait";
   try {
     const body: unknown = await request.json();
     if (
@@ -39,6 +44,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
     }
     prompt = (body as { prompt: string }).prompt.trim();
+    if ((body as { orientation?: unknown }).orientation === "landscape") {
+      orientation = "landscape";
+    }
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -74,7 +82,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt(orientation) },
             {
               role: "user",
               content: `Create a coloring page SVG of: ${prompt}`,
@@ -104,7 +112,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const svg = sanitizeSvg(content);
+    const svg = sanitizeSvg(content, orientation);
     if (!svg) {
       return NextResponse.json(
         {

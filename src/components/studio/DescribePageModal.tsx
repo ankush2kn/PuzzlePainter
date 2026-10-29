@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import type { Orientation } from "@/types/studio";
 
 interface DescribePageModalProps {
   open: boolean;
+  orientation: Orientation;
   onClose: () => void;
   onGenerated: (svg: string) => void;
 }
@@ -18,6 +20,7 @@ const IDEAS = [
 
 export function DescribePageModal({
   open,
+  orientation,
   onClose,
   onGenerated,
 }: DescribePageModalProps) {
@@ -36,7 +39,7 @@ export function DescribePageModal({
       const res = await fetch("/api/generate-page", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, orientation }),
       });
       const data: unknown = await res.json();
       if (!res.ok) {
@@ -122,7 +125,7 @@ export function DescribePageModal({
 
         {previewSvg && (
           <div
-            className="describe-preview"
+            className={`describe-preview ${orientation}`}
             dangerouslySetInnerHTML={{
               __html: previewSvg
                 .replace(/width="[^"]*"/, 'width="100%"')
