@@ -65,6 +65,12 @@ export const TEMPLATES: TemplateItem[] = [
     image: "/pages/melty-ice-cream.png",
   },
   {
+    id: "party-cupcakes",
+    name: "Party Cupcakes",
+    theme: "food",
+    image: "/pages/party-cupcakes.png",
+  },
+  {
     id: "race-day",
     name: "Race Day",
     theme: "vehicles",
