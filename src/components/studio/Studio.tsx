@@ -14,7 +14,6 @@ import type {
   Difficulty,
   Orientation,
   PieceShape,
-  Stage,
   ToolId,
 } from "@/types/studio";
 import { ColorRail } from "@/components/studio/ColorRail";
@@ -44,7 +43,6 @@ export function Studio() {
   const [brushSize, setBrushSize] = useState<BrushSize>("md");
   const [stampId, setStampId] = useState("rainbow");
   const [textValue, setTextValue] = useState("Hello!");
-  const [stage, setStage] = useState<Stage>("create");
   const [shape, setShape] = useState<PieceShape>("rectangle");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [showCutLines, setShowCutLines] = useState(false);
@@ -229,7 +227,6 @@ export function Studio() {
   };
 
   const openPreview = async () => {
-    setStage("print");
     setShowCutLines(true);
     const paint = canvasRef.current?.getPaintCanvas();
     const lines = canvasRef.current?.getLinesCanvas();
@@ -428,17 +425,11 @@ export function Studio() {
         )}
 
         <PuzzlePanel
-          stage={stage}
           shape={shape}
           difficulty={difficulty}
           showCutLines={showCutLines}
           open={puzzleOpen}
           onClose={() => setPuzzleOpen(false)}
-          onStageChange={(s) => {
-            setStage(s);
-            if (s === "cut") setShowCutLines(true);
-            if (s === "print") void openPreview();
-          }}
           onShapeChange={setShape}
           onDifficultyChange={setDifficulty}
           onToggleCutLines={() => setShowCutLines((v) => !v)}
@@ -482,10 +473,7 @@ export function Studio() {
         difficulty={difficulty}
         exportCanvas={exportCanvas}
         onClose={() => setPreviewOpen(false)}
-        onKeepPainting={() => {
-          setPreviewOpen(false);
-          setStage("create");
-        }}
+        onKeepPainting={() => setPreviewOpen(false)}
       />
     </div>
   );

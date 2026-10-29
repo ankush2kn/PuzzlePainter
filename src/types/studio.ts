@@ -13,8 +13,6 @@ export type PieceShape = "rectangle" | "triangle" | "jigsaw";
 
 export type Difficulty = "easy" | "medium" | "hard";
 
-export type Stage = "create" | "cut" | "print";
-
 export type Orientation = "portrait" | "landscape";
 
 export interface StampItem {

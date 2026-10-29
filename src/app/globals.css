@@ -536,31 +536,6 @@ button {
   width: min(calc(100vw - 660px), calc((100vh - 150px) * 1.294), 960px);
 }
 
-.stage-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.35rem;
-  background: #fff3f8;
-  padding: 0.3rem;
-  border-radius: 999px;
-}
-
-.stage-tab {
-  border: none;
-  background: transparent;
-  border-radius: 999px;
-  padding: 0.55rem 0.3rem;
-  font-weight: 800;
-  font-family: var(--font-display);
-  color: var(--ink-soft);
-}
-
-.stage-tab.active {
-  background: white;
-  color: var(--candy-pink);
-  box-shadow: 0 4px 10px rgba(255, 77, 141, 0.2);
-}
-
 .diff-stack {
   display: flex;
   flex-direction: column;

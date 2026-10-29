@@ -2,19 +2,17 @@
 
 import { DIFFICULTY_META, SHAPE_LABELS } from "@/lib/constants";
 import { difficultyPieceLabel } from "@/lib/puzzleShapes";
-import type { Difficulty, PieceShape, Stage } from "@/types/studio";
+import type { Difficulty, PieceShape } from "@/types/studio";
 
 const SHAPES: PieceShape[] = ["rectangle", "triangle", "jigsaw"];
 const DIFFS: Difficulty[] = ["easy", "medium", "hard"];
 
 interface PuzzlePanelProps {
-  stage: Stage;
   shape: PieceShape;
   difficulty: Difficulty;
   showCutLines: boolean;
   open: boolean;
   onClose: () => void;
-  onStageChange: (stage: Stage) => void;
   onShapeChange: (shape: PieceShape) => void;
   onDifficultyChange: (d: Difficulty) => void;
   onToggleCutLines: () => void;
@@ -22,13 +20,11 @@ interface PuzzlePanelProps {
 }
 
 export function PuzzlePanel({
-  stage,
   shape,
   difficulty,
   showCutLines,
   open,
   onClose,
-  onStageChange,
   onShapeChange,
   onDifficultyChange,
   onToggleCutLines,
@@ -44,27 +40,6 @@ export function PuzzlePanel({
       >
         ✕
       </button>
-
-      <div className="stage-tabs" role="tablist" aria-label="Studio stages">
-        {(
-          [
-            ["create", "Create"],
-            ["cut", "Cut"],
-            ["print", "Print"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={stage === id}
-            className={`stage-tab ${stage === id ? "active" : ""}`}
-            onClick={() => onStageChange(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
 
       <section>
         <h2 className="panel-title">Pieces</h2>
