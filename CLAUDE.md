@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # start dev server (localhost:3000) — plain Next.js
-npm run build    # production build — plain Next.js
+npm run dev      # start dev server (localhost:3000) — plain Next.js, webpack (`next dev --webpack`)
+npm run build    # production build — plain Next.js, webpack (`next build --webpack`)
 npm run start    # serve production build — plain Next.js
 npm run lint     # eslint
 ```
@@ -21,8 +21,10 @@ This repo has two parallel build pipelines: plain Next.js (above, via `next dev`
 npm run dev:vinext     # dev server on the Workers-shaped runtime (port 3001)
 npm run build:vinext   # build to dist/client + dist/server
 npm run start:vinext   # wrangler dev against the built output — closest thing to a local prod preview
-npm run deploy:vinext  # build + deploy to Cloudflare Workers (puzzle-painter.arshanti.workers.dev)
+npm run deploy:vinext  # build + deploy to Cloudflare Workers (puzzle-painter.arshanti.workers.dev) — manual/out-of-band only
 ```
+
+You normally don't run `deploy:vinext` yourself: pushing to `main` deploys to production automatically (see Deployment below).
 
 If a `start:vinext`/`wrangler dev` process is left running, a re-build can fail with an `EPERM`/permission error on `dist/server/.wrangler` — the `workerd` child process it spawns holds file locks that surviving the parent process's exit. Kill the `workerd.exe` / `wrangler ... dev` processes (not just the `npm run` wrapper) before rebuilding.
 
@@ -39,19 +41,25 @@ Puzzle Painter: a browser-based coloring/painting studio for kids. Users paint o
 
 Undo/redo is a manual stack of `ImageData` snapshots of the paint layer only (`history.current`, capped at `MAX_HISTORY = 30`) — the lines layer is never undone, only reloaded via `loadTemplateImage`/`loadTemplateSvg`. All canvas mutation methods are exposed to the parent via `useImperativeHandle` (`PaintingCanvasHandle`), not props, because `Studio.tsx` needs imperative access (undo, export, "has the user painted anything yet") that doesn't fit a declarative render cycle.
 
-**State ownership**: `Studio.tsx` owns all UI state (tool, color, puzzle settings, which template/stage is active) and drives `PaintingCanvas` via props; the canvas reports back through the `onHistoryChange`/`onPainted` callbacks. Fixed canvas dimensions live in `lib/constants.ts` (`CANVAS_WIDTH`/`CANVAS_HEIGHT` = 816×1056, i.e. US Letter at 96dpi) and are used consistently across drawing, export, and template rendering — don't hardcode canvas sizes elsewhere.
+**State ownership**: `Studio.tsx` owns all UI state (tool, color, puzzle settings, orientation, which template is active) and drives `PaintingCanvas` via props; the canvas reports back through the `onHistoryChange`/`onPainted` callbacks. Canvas dimensions live in `lib/constants.ts` — don't hardcode canvas sizes elsewhere:
+- `CANVAS_WIDTH`/`CANVAS_HEIGHT` (816×1056, US Letter portrait at 96dpi) — the size of the *page*: paint/lines layers, undo snapshots, saved art, fill-tool pixel reads.
+- `CANVAS_SIZE[orientation]` — the size of the *view*: the visible display canvas, cut lines, and export. Same as above in portrait, swapped (1056×816) in landscape.
 
-**Persistence** (`lib/storage.ts`): the entire studio state (including the paint layer as a base64 PNG data URL) is debounced (400ms, see `scheduleSave` in `Studio.tsx`) into a single `localStorage` key (`STORAGE_KEY`). `StudioPersistedState.version` gates the shape — bump it and handle migration if the schema changes.
+**Orientation (portrait/landscape)**: the page itself is always portrait; landscape is only a way of viewing it — the page turned 90° clockwise. `applyViewTransform()` (page → view, used in `composite()` and export) and `viewToPage()` (pointer → page coords) in `lib/drawing.ts` are the single source of that mapping. Paint, undo history, and persistence never see a rotated canvas, so toggling orientation never touches the art. Cut lines are drawn in view space (after the transform is restored), because they belong to the printed sheet, not the page.
 
-**Templates vs. custom SVG**: built-in coloring pages are listed in `lib/templates.ts` (`TEMPLATES`) and point at transparent line-art PNGs in `public/pages/`, drawn onto the lines layer via `renderImageToCanvas`. To add one, run `node scripts/prepare-page.mjs <image> <id>` (stretches to 816×1056 and turns white into transparency, so the fill tool's dark-pixel barrier check still works), then add a `TEMPLATES` entry. User-generated pages come from `POST /api/generate-page` (OpenRouter LLM call, requires `OPENROUTER_API_KEY`), whose raw output is passed through `sanitizeSvg()` before ever touching the DOM — it strips `<script>`, event-handler attributes, and `javascript:` URLs, and rejects anything not shaped like a bare `<svg>` root. Never bypass `sanitizeSvg` for LLM- or user-supplied SVG.
+**Persistence** (`lib/storage.ts`): the entire studio state (including the paint layer as a base64 PNG data URL) is debounced (400ms, see `scheduleSave` in `Studio.tsx`) into a single `localStorage` key (`STORAGE_KEY`). `StudioPersistedState.version` gates the shape — bump it and handle migration if the schema changes. Purely additive fields can instead be optional with a load-time default, as `orientation` (defaults to `"portrait"`) and `opacity` do, without a version bump.
+
+**Templates vs. custom SVG**: built-in coloring pages are listed in `lib/templates.ts` (`TEMPLATES`) and point at transparent line-art PNGs in `public/pages/`, drawn onto the lines layer via `renderImageToCanvas`. To add one, run `node scripts/prepare-page.mjs <image> <id>` (stretches to 816×1056 and turns white into transparency, so the fill tool's dark-pixel barrier check still works), then add a `TEMPLATES` entry. User-generated pages come from `POST /api/generate-page` (OpenRouter LLM call, requires `OPENROUTER_API_KEY`), whose raw output is passed through `sanitizeSvg()` before ever touching the DOM — it strips `<script>`, event-handler attributes, and `javascript:` URLs, and rejects anything not shaped like a bare `<svg>` root. Never bypass `sanitizeSvg` for LLM- or user-supplied SVG. The route takes an `orientation` in the request body: in landscape it asks the LLM for a 1056×816 drawing (and `sanitizeSvg` falls back to that viewBox if the SVG has none), and `renderSvgToCanvas` then lays an SVG whose viewBox is wider than tall onto the portrait page turned counter-clockwise (the inverse of `applyViewTransform`) so it reads upright in the landscape view.
 
 **Cut lines** (`lib/puzzleShapes.ts`): `drawCutLines()` draws dashed grid lines (rectangle/triangle/jigsaw variants) directly onto a canvas context, driven by `DIFFICULTY_META` piece counts (`lib/constants.ts`). It's called both for the live on-canvas overlay and again at 2x scale (`PRINT_SCALE`) during export (`lib/export.ts`) — keep these two call sites in sync if you change how lines are computed.
 
-**Export** (`lib/export.ts`): `composeExportCanvas()` flattens paint + lines + cut lines onto one offscreen canvas at print resolution, then `downloadPng`/`downloadPdf` (via `jspdf`) serialize it. PDF export always targets 8.5×11in letter format.
+**Export** (`lib/export.ts`): `composeExportCanvas()` flattens paint + lines + cut lines onto one offscreen canvas at print resolution, as currently viewed (so landscape exports sideways), then `downloadPng`/`downloadPdf` (via `jspdf`) serialize it. PDF export is always US Letter: 8.5×11in portrait, or 11×8.5in landscape (picked from the canvas aspect).
 
 ## Deployment
 
 Production runs as a single Cloudflare Worker at **puzzlepainter.fultu.com** (custom domain attached to the `puzzle-painter` Worker in the Cloudflare dashboard), built via **vinext** (`vinext`/`@vinext/cloudflare`, a Vite plugin that reimplements the Next.js API surface to target Workers) — not the older `@opennextjs/cloudflare` adapter. Config lives in `vite.config.ts` (vinext + `@cloudflare/vite-plugin` plugins, `cdnAdapter()` cache) and `wrangler.jsonc` (`nodejs_compat` flag, `assets` binding to `dist/client`, `account_id`). See `DEPLOYMENT.md` for the full rationale and step-by-step (including a fallback plan if vinext ever falls behind this repo's Next.js version).
+
+**Deploys are automatic on push to `main`.** The Worker is connected to this GitHub repo via Cloudflare Workers Builds, tracking `main` with `npm run deploy:vinext` as the build/deploy command — so pushing or merging to `main` *is* shipping to production. Run `npm run deploy:vinext` locally only for a manual/out-of-band deploy.
 
 Practical notes for this setup:
 - `route.ts`'s `export const runtime = "nodejs"` is inert under vinext ("route config currently ignored" per its docs) — Node API access instead comes from the `nodejs_compat` compatibility flag. Don't rely on `runtime`/`preferredRegion` route config meaning anything in the deployed app.
