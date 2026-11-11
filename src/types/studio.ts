@@ -24,9 +24,19 @@ export interface StampItem {
 export interface TemplateItem {
   id: string;
   name: string;
-  theme: "animals" | "nature" | "food" | "space" | "balls" | "vehicles" | "blank";
-  /** URL of a transparent portrait line-art PNG sized to the canvas; null for a blank page. */
+  theme:
+    | "animals"
+    | "nature"
+    | "food"
+    | "space"
+    | "balls"
+    | "vehicles"
+    | "papercraft"
+    | "blank";
+  /** URL of a transparent portrait line-art PNG sized to the canvas; null for a blank or drawn-in-code page. */
   image: string | null;
+  /** Set on pages whose outline is a fold-up net drawn in code (see lib/papercraft.ts). */
+  papercraft?: "cube";
 }
 
 export interface PuzzleSettings {

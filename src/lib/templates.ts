@@ -1,5 +1,6 @@
 import type { Orientation, TemplateItem } from "@/types/studio";
 import { CANVAS_SIZE } from "@/lib/constants";
+import { drawCubeNet } from "@/lib/papercraft";
 
 // Built-in pages are transparent line-art PNGs in public/pages/, produced from
 // generated artwork by scripts/prepare-page.mjs.
@@ -9,6 +10,13 @@ export const TEMPLATES: TemplateItem[] = [
     name: "Blank Canvas",
     theme: "blank",
     image: null,
+  },
+  {
+    id: "paper-cube",
+    name: "Fold-a-Cube",
+    theme: "papercraft",
+    image: null,
+    papercraft: "cube",
   },
   {
     id: "dino-cuddles",
@@ -110,9 +118,6 @@ export async function renderSvgToCanvas(
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const trimmed = svg.trim();
-  if (!trimmed || trimmed.includes("></svg>") && /viewBox/.test(trimmed) === false) {
-    // blank ok
-  }
   // Empty inner content — nothing to draw
   if (/<svg[^>]*>\s*<\/svg>/i.test(trimmed)) {
     return;
@@ -145,8 +150,23 @@ function isLandscapeSvg(svg: string): boolean {
   return w > h;
 }
 
-/** Draw a built-in page's line-art image onto a canvas (lines layer); null clears it. */
-export async function renderImageToCanvas(
+/** Draw a built-in page's outline onto a canvas (lines layer); no template clears it. */
+export async function renderTemplateToCanvas(
+  canvas: HTMLCanvasElement,
+  template: TemplateItem | null | undefined,
+): Promise<void> {
+  if (template?.papercraft === "cube") {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawCubeNet(ctx);
+    return;
+  }
+  await renderImageToCanvas(canvas, template?.image ?? null);
+}
+
+/** Draw a line-art image onto a canvas (lines layer); null clears it. */
+async function renderImageToCanvas(
   canvas: HTMLCanvasElement,
   url: string | null,
 ): Promise<void> {

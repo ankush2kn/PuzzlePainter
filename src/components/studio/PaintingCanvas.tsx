@@ -24,12 +24,13 @@ import {
   viewToPage,
 } from "@/lib/drawing";
 import { drawCutLines } from "@/lib/puzzleShapes";
-import { renderImageToCanvas, renderSvgToCanvas } from "@/lib/templates";
+import { renderSvgToCanvas, renderTemplateToCanvas } from "@/lib/templates";
 import type {
   BrushSize,
   Difficulty,
   Orientation,
   PieceShape,
+  TemplateItem,
   ToolId,
 } from "@/types/studio";
 
@@ -38,7 +39,8 @@ export interface PaintingCanvasHandle {
   redo: () => void;
   clearPaint: () => void;
   loadTemplateSvg: (svg: string) => Promise<void>;
-  loadTemplateImage: (url: string | null) => Promise<void>;
+  /** Draws a built-in page's outline; null/undefined gives a blank page. */
+  loadTemplate: (template: TemplateItem | null | undefined) => Promise<void>;
   restorePaintDataUrl: (dataUrl: string) => Promise<void>;
   getPaintDataUrl: () => string;
   getPaintCanvas: () => HTMLCanvasElement | null;
@@ -247,11 +249,11 @@ export const PaintingCanvas = forwardRef<
         await renderSvgToCanvas(lines, svg);
         composite();
       },
-      loadTemplateImage: async (url: string | null) => {
+      loadTemplate: async (template) => {
         ensureLayers();
         const lines = linesRef.current;
         if (!lines) return;
-        await renderImageToCanvas(lines, url);
+        await renderTemplateToCanvas(lines, template);
         composite();
       },
       restorePaintDataUrl: async (dataUrl: string) => {

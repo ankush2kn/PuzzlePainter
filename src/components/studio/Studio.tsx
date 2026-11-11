@@ -17,6 +17,7 @@ import type {
   ToolId,
 } from "@/types/studio";
 import { ColorRail } from "@/components/studio/ColorRail";
+import { CubePreview } from "@/components/studio/CubePreview";
 import { DescribePageModal } from "@/components/studio/DescribePageModal";
 import {
   PaintingCanvas,
@@ -24,6 +25,7 @@ import {
 } from "@/components/studio/PaintingCanvas";
 import { PreviewModal } from "@/components/studio/PreviewModal";
 import { PuzzlePanel } from "@/components/studio/PuzzlePanel";
+import { PuzzlePlay } from "@/components/studio/PuzzlePlay";
 import { SwitchPageConfirm } from "@/components/studio/SwitchPageConfirm";
 import { TemplateGallery } from "@/components/studio/TemplateGallery";
 import { ToolPanel } from "@/components/studio/ToolPanel";
@@ -64,6 +66,14 @@ export function Studio() {
   const [zoom, setZoom] = useState(1);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [puzzleOpen, setPuzzleOpen] = useState(false);
+  /** The finished picture being solved on screen; null when not playing. */
+  const [playImage, setPlayImage] = useState<HTMLCanvasElement | null>(null);
+  /** Bumped whenever the page's pixels change, for views that mirror it. */
+  const [pageVersion, setPageVersion] = useState(0);
+
+  // A fold-up net instead of a picture: there's a cube to build, not a puzzle to cut.
+  const papercraft =
+    !customSvg && getTemplateById(templateId ?? "")?.papercraft === "cube";
 
   const stampEmoji =
     STAMPS.find((s) => s.id === stampId)?.emoji ?? "⭐";
@@ -115,13 +125,24 @@ export function Studio() {
     saveTimer.current = setTimeout(() => persist(), 400);
   }, [persist]);
 
+  const handlePainted = useCallback(() => {
+    scheduleSave();
+    setPageVersion((v) => v + 1);
+  }, [scheduleSave]);
+
+  const getLayers = useCallback(() => {
+    const paint = canvasRef.current?.getPaintCanvas();
+    const lines = canvasRef.current?.getLinesCanvas();
+    return paint && lines ? { paint, lines } : null;
+  }, []);
+
   // Hydrate from localStorage once canvas is ready
   useEffect(() => {
     if (hydrated.current) return;
     const saved = loadStudioState();
     hydrated.current = true;
     if (!saved) {
-      void canvasRef.current?.loadTemplateImage(null);
+      void canvasRef.current?.loadTemplate(null);
       return;
     }
 
@@ -142,13 +163,15 @@ export function Studio() {
       if (saved.customTemplateSvg) {
         await canvasRef.current?.loadTemplateSvg(saved.customTemplateSvg);
       } else if (saved.templateId) {
-        const t = getTemplateById(saved.templateId);
-        await canvasRef.current?.loadTemplateImage(t?.image ?? null);
+        await canvasRef.current?.loadTemplate(
+          getTemplateById(saved.templateId),
+        );
       }
       if (saved.paintDataUrl) {
         await canvasRef.current?.restorePaintDataUrl(saved.paintDataUrl);
       }
       syncHistory();
+      setPageVersion((v) => v + 1);
     };
     void boot();
   }, [syncHistory]);
@@ -177,11 +200,12 @@ export function Studio() {
     if (!t) return;
     setTemplateId(id);
     setCustomSvg(null);
-    await canvasRef.current?.loadTemplateImage(t.image);
+    await canvasRef.current?.loadTemplate(t);
     if (resetPaint) {
       canvasRef.current?.clearPaint();
       syncHistory();
     }
+    setPageVersion((v) => v + 1);
     scheduleSave();
   };
 
@@ -226,22 +250,37 @@ export function Studio() {
     }
   };
 
-  const openPreview = async () => {
-    setShowCutLines(true);
+  const composePage = async (includeCutLines: boolean) => {
     const paint = canvasRef.current?.getPaintCanvas();
     const lines = canvasRef.current?.getLinesCanvas();
-    if (!paint || !lines) return;
-    const composed = await composeExportCanvas({
+    if (!paint || !lines) return null;
+    return composeExportCanvas({
       paintCanvas: paint,
       linesCanvas: lines,
       shape,
       difficulty,
-      includeCutLines: true,
+      includeCutLines,
       orientation,
     });
+  };
+
+  const openPreview = async () => {
+    // A cube net is cut along its own outline, not along puzzle lines.
+    if (!papercraft) setShowCutLines(true);
+    const composed = await composePage(!papercraft);
+    if (!composed) return;
     setExportCanvas(composed);
     setPreviewUrl(composed.toDataURL("image/png"));
     setPreviewOpen(true);
+  };
+
+  /** Solve the painting on screen: the picture without cut lines becomes the pieces. */
+  const openPlay = async () => {
+    const composed = await composePage(false);
+    if (!composed) return;
+    setPreviewOpen(false);
+    setPuzzleOpen(false);
+    setPlayImage(composed);
   };
 
   const handleClear = () => {
@@ -261,7 +300,7 @@ export function Studio() {
     setShowCutLines(false);
     setTool("brush");
     void (async () => {
-      await canvasRef.current?.loadTemplateImage(null);
+      await canvasRef.current?.loadTemplate(null);
       canvasRef.current?.clearPaint();
       syncHistory();
     })();
@@ -385,6 +424,9 @@ export function Studio() {
         />
 
         <main className="canvas-stage">
+          {papercraft && (
+            <CubePreview getLayers={getLayers} version={pageVersion} />
+          )}
           <div
             className="canvas-frame"
             style={{ transform: `scale(${zoom})` }}
@@ -398,11 +440,11 @@ export function Studio() {
               brushSize={brushSize}
               stampEmoji={stampEmoji}
               textValue={textValue}
-              showCutLines={showCutLines}
+              showCutLines={showCutLines && !papercraft}
               pieceShape={shape}
               difficulty={difficulty}
               onHistoryChange={syncHistory}
-              onPainted={scheduleSave}
+              onPainted={handlePainted}
             />
           </div>
         </main>
@@ -434,6 +476,8 @@ export function Studio() {
           onDifficultyChange={setDifficulty}
           onToggleCutLines={() => setShowCutLines((v) => !v)}
           onPreview={() => void openPreview()}
+          onPlay={() => void openPlay()}
+          papercraft={papercraft}
         />
       </div>
 
@@ -472,9 +516,21 @@ export function Studio() {
         shape={shape}
         difficulty={difficulty}
         exportCanvas={exportCanvas}
+        papercraft={papercraft}
         onClose={() => setPreviewOpen(false)}
         onKeepPainting={() => setPreviewOpen(false)}
+        onPlay={() => void openPlay()}
       />
+
+      {playImage && (
+        <PuzzlePlay
+          image={playImage}
+          shape={shape}
+          difficulty={difficulty}
+          orientation={orientation}
+          onClose={() => setPlayImage(null)}
+        />
+      )}
     </div>
   );
 }

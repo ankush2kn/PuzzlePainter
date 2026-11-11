@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/constants";
+import { drawCubeNet } from "@/lib/papercraft";
 import { TEMPLATES } from "@/lib/templates";
 import type { Orientation } from "@/types/studio";
 
@@ -21,6 +23,7 @@ const THEMES = [
   { id: "space", label: "Space" },
   { id: "balls", label: "Balls" },
   { id: "vehicles", label: "Vehicles" },
+  { id: "papercraft", label: "Fold & Build" },
 ] as const;
 
 // Only offer tabs for themes that have at least one page.
@@ -120,7 +123,9 @@ export function TemplateGallery({
               }}
             >
               <div className="gallery-thumb">
-                {t.image ? (
+                {t.papercraft ? (
+                  <NetThumb />
+                ) : t.image ? (
                   // eslint-disable-next-line @next/next/no-img-element -- static line-art thumbnail
                   <img className="thumb-img" src={t.image} alt="" loading="lazy" />
                 ) : (
@@ -133,5 +138,28 @@ export function TemplateGallery({
         </div>
       </div>
     </div>
+  );
+}
+
+const THUMB_SCALE = 0.25;
+
+/** The cube net is drawn in code, so its thumbnail is too. */
+function NetThumb() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const ctx = ref.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(THUMB_SCALE, 0, 0, THUMB_SCALE, 0, 0);
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    drawCubeNet(ctx);
+  }, []);
+  return (
+    <canvas
+      ref={ref}
+      className="thumb-img"
+      width={CANVAS_WIDTH * THUMB_SCALE}
+      height={CANVAS_HEIGHT * THUMB_SCALE}
+      aria-hidden
+    />
   );
 }

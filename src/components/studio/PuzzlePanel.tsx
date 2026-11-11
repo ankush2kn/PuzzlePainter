@@ -17,6 +17,9 @@ interface PuzzlePanelProps {
   onDifficultyChange: (d: Difficulty) => void;
   onToggleCutLines: () => void;
   onPreview: () => void;
+  onPlay: () => void;
+  /** The page is a fold-up net: there's a cube to print, not a puzzle to cut. */
+  papercraft: boolean;
 }
 
 export function PuzzlePanel({
@@ -29,6 +32,8 @@ export function PuzzlePanel({
   onDifficultyChange,
   onToggleCutLines,
   onPreview,
+  onPlay,
+  papercraft,
 }: PuzzlePanelProps) {
   return (
     <aside className={`panel puzzle-panel ${open ? "sheet-open" : ""}`}>
@@ -41,60 +46,88 @@ export function PuzzlePanel({
         ✕
       </button>
 
-      <section>
-        <h2 className="panel-title">Pieces</h2>
-        <div className="diff-stack">
-          {DIFFS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              className={`diff-btn diff-${d} ${difficulty === d ? "active" : ""}`}
-              onClick={() => onDifficultyChange(d)}
-            >
-              <strong>{DIFFICULTY_META[d].label}</strong>
-              <span>
-                {difficultyPieceLabel(d, shape)} · {DIFFICULTY_META[d].ages}
-              </span>
+      {papercraft ? (
+        <>
+          <section>
+            <h2 className="panel-title">Paper cube</h2>
+            <ol className="cube-steps">
+              <li>Paint all six squares</li>
+              <li>Watch your cube fold up in the corner</li>
+              <li>Print it, cut it out, fold it and glue it</li>
+            </ol>
+          </section>
+
+          <button type="button" className="make-puzzle-btn" onClick={onPreview}>
+            <span aria-hidden>🧊</span>
+            Print my cube!
+            <small>Cut, fold and glue</small>
+          </button>
+        </>
+      ) : (
+        <>
+          <section>
+            <h2 className="panel-title">Pieces</h2>
+            <div className="diff-stack">
+              {DIFFS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`diff-btn diff-${d} ${difficulty === d ? "active" : ""}`}
+                  onClick={() => onDifficultyChange(d)}
+                >
+                  <strong>{DIFFICULTY_META[d].label}</strong>
+                  <span>
+                    {difficultyPieceLabel(d, shape)} · {DIFFICULTY_META[d].ages}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="panel-title">Piece shape</h2>
+            <div className="shape-row">
+              {SHAPES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`shape-btn ${shape === s ? "active" : ""}`}
+                  onClick={() => onShapeChange(s)}
+                >
+                  <ShapeIcon shape={s} />
+                  {SHAPE_LABELS[s]}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <button
+            type="button"
+            className={`cut-toggle ${showCutLines ? "on" : ""}`}
+            onClick={onToggleCutLines}
+            aria-pressed={showCutLines}
+          >
+            <span className="toggle-knob" />
+            <span>
+              <strong>Show cut lines</strong>
+              <small>Dotted lines for scissors</small>
+            </span>
+          </button>
+
+          <div className="puzzle-cta">
+            <button type="button" className="play-puzzle-btn" onClick={onPlay}>
+              <span aria-hidden>🧩</span>
+              Play my puzzle!
+              <small>Solve it right here</small>
             </button>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="panel-title">Piece shape</h2>
-        <div className="shape-row">
-          {SHAPES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`shape-btn ${shape === s ? "active" : ""}`}
-              onClick={() => onShapeChange(s)}
-            >
-              <ShapeIcon shape={s} />
-              {SHAPE_LABELS[s]}
+            <button type="button" className="make-puzzle-btn" onClick={onPreview}>
+              <span aria-hidden>👀</span>
+              Make my puzzle!
+              <small>Preview before printing</small>
             </button>
-          ))}
-        </div>
-      </section>
-
-      <button
-        type="button"
-        className={`cut-toggle ${showCutLines ? "on" : ""}`}
-        onClick={onToggleCutLines}
-        aria-pressed={showCutLines}
-      >
-        <span className="toggle-knob" />
-        <span>
-          <strong>Show cut lines</strong>
-          <small>Dotted lines for scissors</small>
-        </span>
-      </button>
-
-      <button type="button" className="make-puzzle-btn" onClick={onPreview}>
-        <span aria-hidden>👀</span>
-        Make my puzzle!
-        <small>Preview before printing</small>
-      </button>
+          </div>
+        </>
+      )}
     </aside>
   );
 }
